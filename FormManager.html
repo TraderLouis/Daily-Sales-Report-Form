@@ -1,0 +1,132 @@
+<script>
+// Form manager for handling sales form interactions
+// - Depends on DataManager for product data
+// - Handles currency, amount display, and product autocomplete
+
+class FormManager {
+  constructor(dataManager) {
+    this.dataManager = dataManager; // Holds product/seller data
+    this.currency = 'TWD'; // Default currency
+  }
+
+  // Setup event listeners for form fields
+  setupListeners() {
+    const dealAmount = document.getElementById('dealAmount');
+    const exchangeRate = document.getElementById('exchangeRate');
+    const productInput = document.getElementById('product');
+
+    // Update amounts on value change
+    dealAmount.addEventListener('input', () => this.updateAmountDisplay());
+    exchangeRate.addEventListener('input', () => this.updateAmountDisplay());
+
+    // Autocomplete for product input
+    productInput.addEventListener('input', (e) => this.handleProductInput(e));
+    productInput.addEventListener('blur', () => this.hideProductSuggestions());
+    productInput.addEventListener('keydown', (e) => this.handleProductKeydown(e));
+  }
+
+  // Switch between TWD and foreign currency
+  setCurrency(currency) {
+    this.currency = currency;
+    const buttons = document.querySelectorAll('.currency-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    if (currency === 'TWD') buttons[0].classList.add('active');
+    else buttons[1].classList.add('active');
+    this.updateAmountDisplay();
+  }
+
+  getCurrentCurrency() {
+    return this.currency;
+  }
+
+  // Update TWD and CSM amounts on screen
+  updateAmountDisplay() {
+    const dealAmount = parseFloat(document.getElementById('dealAmount').value) || 0;
+    const exchangeRate = parseFloat(document.getElementById('exchangeRate').value) || 30;
+    const twdAmount = this.currency === 'TWD' ? dealAmount : dealAmount * exchangeRate;
+    document.getElementById('twdAmount').textContent = `$${twdAmount.toLocaleString()}`;
+
+    // Calculate CSM value based on product rate
+    const productName = document.getElementById('product').value.trim();
+    const productData = dataManager.getProductByName(productName);
+    const csmRate = productData ? productData.CSM : 0;
+    const csmAmount = twdAmount * csmRate;
+
+    document.getElementById('csmAmount').textContent = `$${csmAmount.toLocaleString()}`;
+  }
+
+  // Select product (on click or Enter key)
+  selectProduct(name) {
+    const input = document.getElementById('product');
+    input.value = name;
+    this.hideProductSuggestions();
+  }
+
+  // Autocomplete product suggestions
+  handleProductInput(e) {
+    const query = e.target.value.toLowerCase().trim();
+    const suggestions = document.getElementById('productSuggestions');
+
+    if (!query) { 
+      suggestions.style.display = 'none'; 
+      return; 
+    }
+
+    // Show max 5 matching products
+    const matches = this.dataManager.products
+      .filter(p => p.name.toLowerCase().includes(query))
+      .slice(0, 5);
+
+    if (!matches.length) { 
+      suggestions.style.display = 'none'; 
+      return; 
+    }
+
+    // Render suggestion list
+    suggestions.innerHTML = matches.map((p, i) =>
+      `<div class="suggestion-item" data-index="${i}">${p.name}</div>`
+    ).join('');
+    suggestions.style.display = 'block';
+
+    // Bind click events to suggestion items
+    suggestions.querySelectorAll('.suggestion-item').forEach(item => {
+      item.addEventListener('click', () => this.selectProduct(item.textContent));
+    });
+  }
+
+  // Hide suggestion list (delayed to allow click)
+  hideProductSuggestions() {
+    setTimeout(() => document.getElementById('productSuggestions').style.display = 'none', 200);
+  }
+
+  // Keyboard navigation for suggestions
+  handleProductKeydown(e) {
+    const suggestions = document.getElementById('productSuggestions');
+    if (suggestions.style.display === 'none') return;
+
+    const items = suggestions.querySelectorAll('.suggestion-item');
+    const activeItem = suggestions.querySelector('.suggestion-item.active');
+    let currentIndex = activeItem ? Array.from(items).indexOf(activeItem) : -1;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      currentIndex = Math.min(currentIndex + 1, items.length - 1);
+      this.updateActiveSuggestion(items, currentIndex);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      currentIndex = Math.max(currentIndex - 1, 0);
+      this.updateActiveSuggestion(items, currentIndex);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeItem) this.selectProduct(activeItem.textContent);
+    } else if (e.key === 'Escape') {
+      suggestions.style.display = 'none';
+    }
+  }
+
+  // Highlight active suggestion
+  updateActiveSuggestion(items, activeIndex) {
+    items.forEach((item, idx) => item.classList.toggle('active', idx === activeIndex));
+  }
+}
+</script>
