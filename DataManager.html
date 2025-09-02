@@ -1,0 +1,54 @@
+<script>
+// Data manager for handling sellers, products, and items
+// ⚠️ Note: This depends on CONFIG.GAS_URL (Google Apps Script Web App URL).
+// Do not hardcode sensitive production URLs in public repos. 
+// Use environment configs or Script Properties for safer handling.
+
+class DataManager {
+  constructor() {
+    this.sellers = [];
+    this.products = [];
+    this.sellerItems = [];
+  }
+
+  // Load sellers and products from GAS backend
+  async loadData() {
+    if (!CONFIG.GAS_URL) throw new Error("GAS Web App URL is missing");
+
+    try {
+      const res = await fetch(`${CONFIG.GAS_URL}?func=getData`);
+      console.log("fetch URL:", `${CONFIG.GAS_URL}?func=getData`);
+      console.log("response:", res);
+
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+      const data = await res.json();
+      this.sellers = data.sellers;
+      this.products = data.products;
+    } catch (err) {
+      console.error("Failed to load data:", err);
+      throw err;
+    }
+  }
+
+  // Add new item (sales record)
+  addItem(item) {
+    this.sellerItems.push(item);
+  }
+
+  // Find product by name
+  getProductByName(name) {
+    return this.products.find(p => p.name === name) || null;
+  }
+
+  // Remove item by index
+  removeItem(index) {
+    this.sellerItems.splice(index, 1);
+  }
+
+  // Clear all items
+  clearItems() {
+    this.sellerItems = [];
+  }
+}
+</script>
