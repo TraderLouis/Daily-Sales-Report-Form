@@ -1,0 +1,33 @@
+<script>
+// Global manager instances
+let dataManager, formManager, orderManager, uiManager;
+
+async function main() {
+  try {
+    // Initialize DataManager and load data from GAS
+    dataManager = new DataManager();
+    await dataManager.loadData();
+
+    // Initialize FormManager & OrderManager with the loaded data
+    formManager = new FormManager(dataManager);
+    orderManager = new OrderManager(dataManager, formManager);
+
+    // Initialize UIManager to render UI and bind events
+    uiManager = new UIManager(dataManager, formManager, orderManager);
+    uiManager.initUI();  // Generate interface and setup event listeners
+
+    // Hide loading message and show seller buttons
+    document.getElementById("loadingMessage").style.display = "none";
+    document.getElementById("sellersContainer").style.display = "grid";
+
+  } catch (error) {
+    console.error("Failed to load data:", error);
+    // Display error message to user
+    document.getElementById("loadingMessage").innerHTML =
+      `<div class="error">Failed to load data: ${error.message}</div>`;
+  }
+}
+
+// Start the main program
+main();
+</script>
