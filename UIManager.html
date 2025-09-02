@@ -1,0 +1,170 @@
+<script>
+class UIManager {
+  constructor(dataManager, formManager, orderManager) {
+    this.dataManager = dataManager; // Stores sellers, products, and items
+    this.formManager = formManager; // Controls form inputs and calculations
+    this.orderManager = orderManager; // Handles adding items and submitting orders
+  }
+
+  // Initialize UI
+  initUI() {
+    this.createSellerCard(); // Create seller card form
+  }
+
+  // Create seller card with form and item list
+  createSellerCard() {
+    const container = document.getElementById("sellersContainer");
+
+    // Generate seller dropdown options
+    const sellerOptions = this.dataManager.sellers.map(seller => 
+      `<option value="${seller}">${seller}</option>`
+    ).join('');
+
+    // Create card element
+    const card = document.createElement("div");
+    card.className = "seller-card";
+    card.innerHTML = `
+      <div class="seller-name">Sales Order</div>
+
+      <!-- 1. Seller and Channel -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Seller</label>
+          <select id="sellerSelect">
+            <option value="">Select Seller</option>
+            ${sellerOptions}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Channel</label>
+          <input type="text" id="channel" placeholder="Enter channel">
+        </div>
+      </div>
+
+      <!-- 2. Product and Deal Amount -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Product</label>
+          <div class="autocomplete-container">
+            <input type="text" id="product" placeholder="Enter product" autocomplete="off">
+            <div id="productSuggestions" class="suggestions-list"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Deal Amount</label>
+          <input type="number" id="dealAmount" step="0.01" placeholder="Enter amount" class="amount-input">
+        </div>
+      </div>
+
+      <!-- 3. Exchange Rate & Currency Buttons -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Exchange Rate (USD → TWD)</label>
+          <input type="number" id="exchangeRate" step="0.01" value="30">
+        </div>
+        <div class="form-group amount-currency-row">
+          <div class="currency-buttons">
+            <button type="button" class="currency-btn active" onclick="formManager.setCurrency('TWD')">TWD</button>
+            <button type="button" class="currency-btn" onclick="formManager.setCurrency('USD')">USD</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. TWD Amount, CSM, Add Item Button -->
+      <div class="form-row rate-amount-row">
+        <div class="form-group">
+          <label>TWD Amount</label>
+          <div class="amount-preview">
+            <div class="amount" id="twdAmount">$0</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>CSM Amount</label>
+          <div class="amount-preview">
+            <div class="amount" id="csmAmount">$0</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <button class="add-btn-inline" onclick="orderManager.addItem()">Add Item</button>
+        </div>
+      </div>
+
+      <!-- Item List -->
+      <div class="items-list">
+        <div class="items-title">Item List</div>
+        <div id="itemsList" class="no-items">No items added yet</div>
+      </div>
+
+      <!-- Submit Order -->
+      <button class="submit-btn" onclick="orderManager.submitOrder()">Submit Order</button>
+      <div id="result" class="result"></div>
+    `;
+    container.appendChild(card);
+
+    // Initialize form listeners (including autocomplete)
+    this.formManager.setupListeners();
+  }
+
+  // Update item list table
+  static updateItemsList() {
+    const itemsList = document.getElementById('itemsList');
+    const items = dataManager.sellerItems;
+
+    if (!items.length) {
+      itemsList.innerHTML = '<div class="no-items">No items added yet</div>';
+      return;
+    }
+
+    let html = `<div class="table-container"><table class="items-table">
+      <thead>
+        <tr>
+          <th>Seller</th><th>Channel</th><th>Product</th><th>Qty</th>
+          <th>Amount</th><th>Currency</th><th>Rate</th><th>TWD Amount</th><th>CSM/100</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    let totalTWD = 0;
+    let totalCSM = 0;
+
+    items.forEach((item, index) => {
+      totalTWD += item.twdAmount;
+      totalCSM += item.csmAmount;
+
+      html += `<tr>
+        <td>${item.seller}</td>
+        <td>${item.channel}</td>
+        <td>${item.product}</td>
+        <td>1</td>
+        <td>${item.dealAmount.toLocaleString()}</td>
+        <td>${item.currency === 'TWD' ? 'TWD' : 'USD'}</td>
+        <td>${item.currency === 'USD' ? item.exchangeRate : '-'}</td>
+        <td>${item.twdAmount.toLocaleString()}</td>
+        <td>${item.csmAmount.toLocaleString()}</td>
+        <td><button class="delete-btn" onclick="orderManager.removeItem(${index})">Delete</button></td>
+      </tr>`;
+    });
+
+    html += `</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="7">Total</td>
+          <td>${totalTWD.toLocaleString()}</td>
+          <td>${totalCSM.toLocaleString()}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table></div>`;
+
+    itemsList.innerHTML = html;
+  }
+
+  // Clear form inputs
+  static clearForm() {
+    document.getElementById('channel').value = '';
+    document.getElementById('product').value = '';
+    document.getElementById('dealAmount').value = '';
+    formManager.updateAmountDisplay(); // Update TWD and CSM amounts
+  }
+}
+</script>
