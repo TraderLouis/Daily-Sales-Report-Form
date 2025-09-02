@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>業績報告表單</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Include CSS styles -->
+  <?!= include('style') ?>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 業績報告</h1>
+    <!-- Loading message (hidden after data loads) -->
+    <div id="loadingMessage" class="loading">載入中...</div>
+    <!-- Seller buttons will be dynamically rendered here -->
+    <div id="sellersContainer" class="sellers-grid" style="display: none;"></div>
+  </div>
+
+  <!-- Config (⚠️ contains GAS_URL and other settings; do not expose secrets in public repos) -->
+  <?!= include('config') ?>
+
+  <!-- Core classes (separated for clarity and maintainability) -->
+  <?!= include('DataManager') ?>   <!-- Handles data fetching and storage -->
+  <?!= include('FormManager') ?>   <!-- Handles form logic and calculations -->
+  <?!= include('OrderManager') ?>  <!-- Handles order-related actions -->
+  <?!= include('UIManager') ?>     <!-- Handles UI updates and interactions -->
+
+  <!-- Entry point: initializes the app -->
+  <?!= include('Main') ?>
+</body>
+</html>
