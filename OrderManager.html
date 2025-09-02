@@ -1,0 +1,130 @@
+<script>
+/**
+ * OrderManager
+ * Responsibilities:
+ *  - Add items to DataManager
+ *  - Remove items
+ *  - Submit orders to LINE via GAS backend
+ */
+class OrderManager {
+  constructor(dataManager, formManager) {
+    this.dataManager = dataManager;   // Holds sellers, products, and items
+    this.formManager = formManager;   // Handles form logic (amount, product input, currency)
+  }
+
+  /**
+   * Add a new item to DataManager
+   */
+  addItem() {
+    const selectedSeller = document.getElementById('sellerSelect').value;
+    const channel = document.getElementById('channel').value.trim();
+    const product = document.getElementById('product').value.trim();
+    const dealAmount = parseFloat(document.getElementById('dealAmount').value) || 0;
+    const exchangeRate = parseFloat(document.getElementById('exchangeRate').value) || 30;
+    const currency = this.formManager.getCurrentCurrency();
+
+    if (!selectedSeller) { alert("Please select a seller"); return; }
+    if (!channel || !product || dealAmount <= 0) { alert("Please fill in all required fields"); return; }
+
+    // Convert to TWD if necessary
+    const twdAmount = currency === 'TWD' ? dealAmount : dealAmount * exchangeRate;
+
+    // Get CSM rate from product data
+    const productData = this.dataManager.getProductByName(product);
+    const csmRate = productData ? productData.CSM : 0; 
+    const csmAmount = twdAmount * csmRate;
+
+    // Add item to DataManager
+    this.dataManager.addItem({ 
+      seller: selectedSeller,
+      channel,
+      product,
+      dealAmount,
+      currency,
+      exchangeRate,
+      twdAmount,
+      csmAmount
+    });
+
+    UIManager.updateItemsList();
+    UIManager.clearForm();
+  }
+
+  /**
+   * Remove item by index
+   */
+  removeItem(index) {
+    this.dataManager.removeItem(index);
+    UIManager.updateItemsList();
+  }
+
+  /**
+   * Submit order to LINE via GAS backend
+   */
+  async submitOrder() {
+    const items = this.dataManager.sellerItems;
+    const resultDiv = document.getElementById('result');
+
+    if (items.length === 0) { 
+      alert("Please add items before submitting"); 
+      return; 
+    }
+
+    // ----------- Build message string -----------
+    let messageText = `✨✨Daily Sales Report✨✨\n\n`;
+    let totalCSM = 0;
+
+    // Group items by seller
+    let sellerMap = new Map();
+    items.forEach(item => {
+      if (!sellerMap.has(item.seller)) sellerMap.set(item.seller, []);
+      sellerMap.get(item.seller).push(item);
+    });
+
+    // Construct message content
+    sellerMap.forEach((sellerItems, seller) => {
+      messageText += `         🌺${seller} Region🌺\n`; 
+
+      sellerItems.forEach(item => {
+        messageText += `         💥${item.channel}\n`;
+        messageText += `${item.product}/${Math.round(item.dealAmount).toLocaleString()}${item.currency}\n`;
+        messageText += `CSM: ${item.csmAmount.toLocaleString()}\n\n`;
+        totalCSM += item.csmAmount;
+      });
+    });
+
+    messageText += `Total CSM: ${totalCSM.toLocaleString()}\n`;
+    messageText += `🎉🎉🎉🎉🎉🎉`;
+
+    // ----------- Send message via GAS backend -----------
+    resultDiv.innerHTML = "⏳ Sending message...";
+    resultDiv.className = "result info";
+    resultDiv.style.display = "block";
+
+    google.script.run
+      .withSuccessHandler((res) => {
+        if (res.status === "ok") {
+          resultDiv.innerHTML = "✅ Sent to LINE!";
+          resultDiv.className = "result success";
+
+          // Clear items after successful send
+          this.dataManager.clearItems();
+          UIManager.updateItemsList();
+          document.getElementById('sellerSelect').value = '';
+        } else {
+          resultDiv.innerHTML = `❌ Failed: ${res.message}`;
+          resultDiv.className = "result error";
+        }
+
+        setTimeout(() => { resultDiv.style.display = "none"; }, 7000);
+      })
+      .withFailureHandler((err) => {
+        console.error("GAS execution failed:", err);
+        resultDiv.innerHTML = `❌ GAS execution failed:<br>${err.message}`;
+        resultDiv.className = "result error";
+        setTimeout(() => { resultDiv.style.display = "none"; }, 7000);
+      })
+      .sendLineMessage(messageText); // Calls backend function
+  }
+}
+</script>
